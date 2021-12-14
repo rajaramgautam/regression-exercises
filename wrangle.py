@@ -13,17 +13,16 @@ from sklearn.impute import SimpleImputer
 import warnings
 warnings.filterwarnings("ignore")
 
-###################### Acquire Zillow Data ######################
+
 
 def get_connection(db, user=user, host=host, password=password):
     '''
     This function uses my info from my env file to
-    create a connection url to access the Codeup db.
+    create a connection url to access the Codeup server and we will retrieve data from zillow database.
     It takes in a string name of a database as an argument.
     '''
     return f'mysql+pymysql://{user}:{password}@{host}/{db}'
-    
-    
+
     
 def new_zillow_data():
     '''
@@ -66,30 +65,6 @@ WHERE propertylandusedesc IN ("Single Family Residential",
     
     return df
 
-
-
-def get_zillow_data():
-    '''
-    This function reads in zillow data from Codeup database, writes data to
-    a csv file if a local file does not exist, and returns a df.
-    '''
-    if os.path.isfile('df.csv'):
-        
-        # If csv file exists, read in data from csv file.
-        df = pd.read_csv('df.csv', index_col=0)
-        
-    else:
-        
-        # Read fresh data from db into a DataFrame.
-        df = new_zillow_data()
-        
-        # Write DataFrame to a csv file.
-        df.to_csv('df.csv')
-        
-    return df
-
-
-
 def get_histogram(df):
     
     plt.figure(figsize=(16, 3))
@@ -118,9 +93,9 @@ def get_histogram(df):
         
 def get_boxplot(df):        
     # List of columns
-    colu = [col for col in df.columns if col not in ['fips', 'year_built']]
+    cols = [col for col in df.columns if col not in ['fips', 'year_built']]
     plt.figure(figsize=(16, 20))
-    for i, col in enumerate(colu):
+    for i, col in enumerate(cols):
 
         # i starts at 0, but plot nos should start at 1
         plot_number = i + 1 
@@ -132,7 +107,7 @@ def get_boxplot(df):
         plt.title(col)
 
         # Display boxplot for column.
-        sns.boxplot(data=df[colu])
+        sns.boxplot(data=df[cols])
     
 
         # Hide gridlines.
@@ -159,9 +134,29 @@ def prepare_zillow(df):
     return train, validate, test 
 
 
+def remove_outliers(df, k, col_list):
+    ''' remove outliers from a list of columns in a dataframe 
+        and return that dataframe
+    '''
+    
+    for col in col_list:
+
+        q1, q3 = df[col].quantile([.25, .75])  # get quartiles
+        
+        iqr = q3 - q1   # calculate interquartile range
+        
+        upper_bound = q3 + k * iqr   # get upper bound
+        lower_bound = q1 - k * iqr   # get lower bound
+
+        # return dataframe without outliers
+        
+        df = df[(df[col] > lower_bound) & (df[col] < upper_bound)]
+        
+    return df
+
+
 def wrangle_zillow():
     '''Acquire and prepare data from Zillow database for explore'''
     train, validate, test = prepare_zillow(new_zillow_data())
     
     return train, validate, test
-    
